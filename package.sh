@@ -1,15 +1,14 @@
-#!/bin/bash -e
-#
+#!/bin/bash
 # Purpose: Pack a Chromium extension directory into crx format
 
 if test $# -ne 2; then
-  echo "Usage: crxmake.sh <extension dir> <pem path>"
+  echo "Usage: package.sh <extension dir> <pem path>"
   exit 1
 fi
 
 dir=$1
 key=$2
-name=$(basename "$dir")
+name=vaultpass
 crx="$name.crx"
 pub="$name.pub"
 sig="$name.sig"

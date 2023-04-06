@@ -1,8 +1,5 @@
 node_modules/
+.DS_Store
 *.crx
 *.zip
-
-.DS_Store
-screenshot.png
-/docker/vault/data
-/docker/vault/logs
+*.pem
