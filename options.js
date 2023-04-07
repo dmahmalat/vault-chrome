@@ -186,6 +186,17 @@ async function secretChanged({ checkbox, item }) {
       activeSecrets.push(checkbox.name);
     }
     await browser.storage.sync.set({ secrets: activeSecrets });
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    for (let tabIndex = 0; tabIndex < tabs.length; tabIndex++) {
+      const tab = tabs[tabIndex];
+      if (tab.url) {
+        browser.runtime.sendMessage({
+          type: 'auto_fill_secrets',
+          tab: tab
+        });
+        break;
+      }
+    }
   } else {
     for (
       let index = activeSecrets.indexOf(checkbox.name);

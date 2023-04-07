@@ -104,6 +104,10 @@ async function autoFillSecrets(message, sender) {
 
   if (!vaultToken || !vaultAddress) return;
 
+  if (!sender.tab) {
+    sender.tab = message.tab
+  }
+
   const url = new URL(sender.tab.url);
   const hostname = clearHostname(url.hostname);
 
@@ -111,17 +115,24 @@ async function autoFillSecrets(message, sender) {
 
   let loginCount = 0;
 
-  for (const secret of secretList) {
-    const secretKeys = await vault.list(
-      `/${storeComponents.root}/metadata/${storeComponents.subPath}/${secret}`
-    );
-    for (const key of secretKeys.data.keys) {
+  const secretKeys = await vault.list(
+    `/${storeComponents.root}/metadata/${storeComponents.subPath}`
+  );
+  for (const key of secretKeys.data.keys) {
+    let active = false;
+    for (const secret of secretList) {
+      if (key === secret) {
+        active = true;
+        break;
+      }
+    }
+    if (active) {
       const pattern = new RegExp(key);
       const patternMatches = pattern.test(hostname);
       // If the key is an exact match to the current hostname --> autofill
       if (hostname === clearHostname(key)) {
         const credentials = await vault.get(
-          `/${storeComponents.root}/data/${storeComponents.subPath}/${secret}${key}`
+          `/${storeComponents.root}/data/${storeComponents.subPath}/${key}`
         );
 
         chrome.tabs.sendMessage(sender.tab.id, {

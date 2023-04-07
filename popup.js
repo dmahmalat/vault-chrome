@@ -57,33 +57,40 @@ async function querySecrets(searchString, manualSearch) {
   const storeComponents = storePathComponents(storePath, username);
   let matches = 0;
 
-  for (const secret of secretList) {
-    promises.push(
-      (async function () {
-        const secretsInPath = await fetch(
-          `${vaultServerAddress}/v1/${storeComponents.root}/metadata/${storeComponents.subPath}/${secret}`,
-          {
-            method: 'LIST',
-            headers: {
-              'X-Vault-Token': vaultToken,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-        if (!secretsInPath.ok) {
-          if (secretsInPath.status !== 404) {
-            notify.error(`Unable to read ${secret}... Try re-login`, {
-              removeOption: true,
-            });
-          }
-          return;
+  promises.push(
+    (async function () {
+      const secretsInPath = await fetch(
+        `${vaultServerAddress}/v1/${storeComponents.root}/metadata/${storeComponents.subPath}`,
+        {
+          method: 'LIST',
+          headers: {
+            'X-Vault-Token': vaultToken,
+            'Content-Type': 'application/json',
+          },
         }
-        for (const element of (await secretsInPath.json()).data.keys) {
+      );
+      if (!secretsInPath.ok) {
+        if (secretsInPath.status !== 404) {
+          notify.error(`Unable to read secrets... Try re-login`, {
+            removeOption: true,
+          });
+        }
+        return;
+      }
+      for (const element of (await secretsInPath.json()).data.keys) {
+        let active = false;
+        for (const secret of secretList) {
+          if (element === secret) {
+            active = true;
+            break;
+          }
+        }
+        if (active) {
           const pattern = new RegExp(element);
           const patternMatches =
             pattern.test(searchString) || element.includes(searchString);
           if (patternMatches) {
-            const urlPath = `${vaultServerAddress}/v1/${storeComponents.root}/data/${storeComponents.subPath}/${secret}${element}`;
+            const urlPath = `${vaultServerAddress}/v1/${storeComponents.root}/data/${storeComponents.subPath}/${element}`;
             const credentials = await getCredentials(urlPath);
             const credentialsSets = extractCredentialsSets(
               credentials.data.data
@@ -98,9 +105,9 @@ async function querySecrets(searchString, manualSearch) {
             notify.clear();
           }
         }
-      })()
-    );
-  }
+      }
+    })()
+  );
 
   try {
     await Promise.all(promises);
@@ -156,6 +163,11 @@ function extractCredentialsSets(data) {
             ? data['comment' + key.substring(8)]
             : data.hasOwnProperty('comment')
               ? data['comment']
+              : '',
+          enableCopyPassword: data.hasOwnProperty('enableCopyPassword' + key.substring(8))
+            ? data['enableCopyPassword' + key.substring(8)]
+            : data.hasOwnProperty('enableCopyPassword')
+              ? data['enableCopyPassword']
               : '',
         });
       }
@@ -213,18 +225,20 @@ function addCredentialsToList(credentials, credentialName, list) {
   });
   actions.appendChild(copyUsernameButton);
 
-  const copyPasswordButton = document.createElement('button');
-  copyPasswordButton.classList.add('button');
-  copyPasswordButton.title = 'copy password to clipboard';
-  copyPasswordButton.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon--inline">
-      <use href="icons/copy-key.svg#copy-key"/>
-    </svg>
-  `;
-  copyPasswordButton.addEventListener('click', function () {
-    copyStringToClipboard(credentials.password);
-  });
-  actions.appendChild(copyPasswordButton);
+  if (credentials.enableCopyPassword === "true") {
+    const copyPasswordButton = document.createElement('button');
+    copyPasswordButton.classList.add('button');
+    copyPasswordButton.title = 'copy password to clipboard';
+    copyPasswordButton.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" class="icon icon--inline">
+        <use href="icons/copy-key.svg#copy-key"/>
+      </svg>
+    `;
+    copyPasswordButton.addEventListener('click', function () {
+      copyStringToClipboard(credentials.password);
+    });
+    actions.appendChild(copyPasswordButton);
+  }
 
   list.appendChild(item);
 }
