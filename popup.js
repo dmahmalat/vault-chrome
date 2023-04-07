@@ -36,6 +36,7 @@ async function mainLoaded() {
     .vaultAddress;
 
   storePath = (await browser.storage.sync.get('storePath')).storePath;
+  username = (await browser.storage.sync.get('username')).username;
 
   secretList = (await browser.storage.sync.get('secrets')).secrets;
   if (!secretList) {
@@ -53,7 +54,7 @@ async function querySecrets(searchString, manualSearch) {
   const promises = [];
   notify.clear();
 
-  const storeComponents = storePathComponents(storePath);
+  const storeComponents = storePathComponents(storePath, username);
   let matches = 0;
 
   for (const secret of secretList) {

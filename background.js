@@ -75,11 +75,8 @@ class Vault {
   }
 }
 
-function storePathComponents(storePath) {
-  let path = 'secret/vaultPass';
-  if (storePath && storePath.length > 0) {
-    path = storePath;
-  }
+function storePathComponents(storePath, username) {
+  let path = storePath;
   const pathComponents = path.split('/');
   const storeRoot = pathComponents[0];
   const storeSubPath =
@@ -87,7 +84,7 @@ function storePathComponents(storePath) {
 
   return {
     root: storeRoot,
-    subPath: storeSubPath,
+    subPath: storeSubPath + '/' + username,
   };
 }
 
@@ -99,10 +96,11 @@ function clearHostname(hostname) {
 
 async function autoFillSecrets(message, sender) {
   const vaultToken = await storage.local.get('vaultToken');
+  const username = await storage.sync.get('username');
   const vaultAddress = await storage.sync.get('vaultAddress');
   const secretList = await storage.sync.get('secrets', []);
   const storePath = await storage.sync.get('storePath');
-  const storeComponents = storePathComponents(storePath);
+  const storeComponents = storePathComponents(storePath, username);
 
   if (!vaultToken || !vaultAddress) return;
 

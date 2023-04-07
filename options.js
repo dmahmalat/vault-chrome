@@ -44,7 +44,7 @@ async function mainLoaded() {
   const vaultToken = (await browser.storage.local.get('vaultToken')).vaultToken;
   if (vaultToken) {
     try {
-      await querySecrets(vaultServerAddress, vaultToken, null, storePath);
+      await querySecrets(vaultServerAddress, vaultToken, null, storePath, username);
     } catch (err) {
       notify.clear().error(err.message);
     }
@@ -55,7 +55,8 @@ async function querySecrets(
   vaultServerAddress,
   vaultToken,
   policies,
-  storePath
+  storePath,
+  username
 ) {
   // Hide login prompt if we already have a Token
   document.getElementById('login').style.display = 'none';
@@ -67,7 +68,7 @@ async function querySecrets(
     });
   }
 
-  const storeComponents = storePathComponents(storePath);
+  const storeComponents = storePathComponents(storePath, username);
 
   const fetchListOfSecretDirs = await fetch(
     `${vaultServerAddress}/v1/${storeComponents.root}/metadata/${storeComponents.subPath}`,
@@ -179,25 +180,8 @@ async function secretChanged({ checkbox, item }) {
     }
 
     const storePath = (await browser.storage.sync.get('storePath')).storePath;
-    const storeComponents = storePathComponents(storePath);
-    const fetchListOfSecretsForDir = await fetch(
-      `${vaultServerAddress}/v1/${storeComponents.root}/metadata/${storeComponents.subPath}/${checkbox.name}`,
-      {
-        method: 'LIST',
-        headers: {
-          'X-Vault-Token': vaultToken,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    if (!fetchListOfSecretsForDir.ok) {
-      checkbox.checked = false;
-      checkbox.disabled = true;
-      item.classList.add('disabled');
-      throw new Error(
-        `ERROR accessing this field: ${await fetchListOfSecretsForDir.text()}`
-      );
-    }
+    const username = (await browser.storage.sync.get('username')).username;
+    const storeComponents = storePathComponents(storePath, username);
     if (activeSecrets.indexOf(checkbox.name) < 0) {
       activeSecrets.push(checkbox.name);
     }
@@ -243,7 +227,7 @@ async function authToVault(
   const authInfo = (await apiResponse.json()).auth;
   const token = authInfo.client_token;
   await browser.storage.local.set({ vaultToken: token });
-  await querySecrets(vaultServer, token, authInfo.policies, storePath);
+  await querySecrets(vaultServer, token, authInfo.policies, storePath, username);
 
   browser.runtime.sendMessage({
     type: 'auto_renew_token',
@@ -321,11 +305,13 @@ browser.runtime.onMessage.addListener(async function (message) {
       await browser.storage.local.set({ vaultToken: message.token });
       await browser.storage.sync.set({ vaultAddress: message.address });
       const storePath = (await browser.storage.sync.get('storePath')).storePath;
+      const username = (await browser.storage.sync.get('username')).username;
       await querySecrets(
         message.address,
         message.token,
         message.policies,
-        storePath
+        storePath,
+        username
       );
       break;
     }

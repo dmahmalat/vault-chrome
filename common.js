@@ -2,11 +2,8 @@
 /* eslint-disable no-unused-vars */
 /* global browser chrome */
 
-function storePathComponents(storePath) {
-  let path = 'secret/vaultPass';
-  if (storePath && storePath.length > 0) {
-    path = storePath;
-  }
+function storePathComponents(storePath, username) {
+  let path = storePath;
   const pathComponents = path.split('/');
   const storeRoot = pathComponents[0];
   const storeSubPath =
@@ -14,7 +11,7 @@ function storePathComponents(storePath) {
 
   return {
     root: storeRoot,
-    subPath: storeSubPath,
+    subPath: storeSubPath + '/' + username,
   };
 }
 
