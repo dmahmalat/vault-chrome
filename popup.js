@@ -158,9 +158,10 @@ function beforeLast(value, delimiter) {
 function getPropertyFromKey(key, property) {
   let defaultValue = '';
 
-  if (property.endsWith("_username_enabled")){
-    defaultValue = "true";
-  }
+  // Uncomment to default show the copy username button
+  // if (property.endsWith("_username_enabled")){
+  //   defaultValue = "true";
+  // }
 
   return key.hasOwnProperty(property) ? key[property] : defaultValue;
 }
