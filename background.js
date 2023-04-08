@@ -135,10 +135,13 @@ async function autoFillSecrets(message, sender) {
           `/${storeComponents.root}/data/${storeComponents.subPath}/${key}`
         );
 
+        // If the field name matches 'login', autofill using this field on page load
         chrome.tabs.sendMessage(sender.tab.id, {
           message: 'fill_creds',
-          username: credentials.data.data.username,
-          password: credentials.data.data.password,
+          username: credentials.data.data.login_username,
+          username_matcher: credentials.data.data.login_username_matcher,
+          password: credentials.data.data.login_password,
+          password_matcher: credentials.data.data.login_password_matcher,
         });
       }
       if (patternMatches) {

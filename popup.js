@@ -139,34 +139,53 @@ const searchHandler = function (e) {
 
 searchInput.addEventListener('keyup', searchHandler);
 
+// Credit:
+// https://futurestud.io/tutorials/get-the-part-before-last-occurrence-in-a-string-in-javascript-or-node-js#:~:text=You%20can%20use%20JavaScript's%20String,a%20character%20or%20character%20sequence.
+function beforeLast(value, delimiter) {  
+  value = value || ''
+
+  if (delimiter === '') {
+    return value
+  }
+
+  const substrings = value.split(delimiter)
+
+  return substrings.length === 1
+    ? value // delimiter is not part of the string
+    : substrings.slice(0, -1).join(delimiter)
+}
+
+function getPropertyFromKey(key, property) {
+  let defaultValue = '';
+
+  if (property.endsWith("_username_enabled")){
+    defaultValue = "true";
+  }
+
+  return key.hasOwnProperty(property) ? key[property] : defaultValue;
+}
+
 function extractCredentialsSets(data) {
   const keys = Object.keys(data);
   const credentials = [];
 
   for (const key of keys) {
-    if (key.startsWith('username')) {
-      const passwordField = 'password' + key.substring(8);
-      if (data[passwordField]) {
-        credentials.push({
-          username: data[key],
-          password: data['password' + key.substring(8)],
-          title: data.hasOwnProperty('title' + key.substring(8))
-            ? data['title' + key.substring(8)]
-            : data.hasOwnProperty('title')
-              ? data['title']
-              : '',
-          comment: data.hasOwnProperty('comment' + key.substring(8))
-            ? data['comment' + key.substring(8)]
-            : data.hasOwnProperty('comment')
-              ? data['comment']
-              : '',
-          enableCopyPassword: data.hasOwnProperty('enableCopyPassword' + key.substring(8))
-            ? data['enableCopyPassword' + key.substring(8)]
-            : data.hasOwnProperty('enableCopyPassword')
-              ? data['enableCopyPassword']
-              : '',
-        });
-      }
+    // Use Username as a key for a given credential object field
+    // Skip through other keys (they are part of the same credential object)
+    if (key.endsWith("_username")) {
+      const fieldName = beforeLast(key, "_username");
+
+      credentials.push({
+        title: getPropertyFromKey(data, fieldName + "_title"),
+        comment: getPropertyFromKey(data, fieldName + "_comment"),
+        username: getPropertyFromKey(data, fieldName + "_username"),
+        username_matcher: getPropertyFromKey(data, fieldName + "_username_matcher"),
+        username_enabled: getPropertyFromKey(data, fieldName + "_username_enabled"),
+        password: getPropertyFromKey(data, fieldName + "_password"),
+        password_matcher: getPropertyFromKey(data, fieldName + "_password_matcher"),
+        password_enabled: getPropertyFromKey(data, fieldName + "_password_enabled")
+      });
+
     }
   }
 
@@ -187,7 +206,7 @@ function addCredentialsToList(credentials, credentialName, list) {
     'js-ripple-effect'
   );
   primaryContent.addEventListener('click', function () {
-    fillCredentialsInBrowser(credentials.username, credentials.password);
+    fillCredentialsInBrowser(credentials);
   });
   item.appendChild(primaryContent);
 
@@ -201,27 +220,29 @@ function addCredentialsToList(credentials, credentialName, list) {
 
   const detailContent = document.createElement('span');
   detailContent.classList.add('list__item-text-body');
-  detailContent.textContent = `User: ${credentials.username}`;
+  detailContent.textContent = `ID: ${credentials.username}`;
   primaryContent.appendChild(detailContent);
 
   const actions = document.createElement('div');
   actions.classList.add('list__item-actions');
   item.appendChild(actions);
 
-  const copyUsernameButton = document.createElement('button');
-  copyUsernameButton.classList.add('button');
-  copyUsernameButton.title = 'copy username to clipboard';
-  copyUsernameButton.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon--inline">
-      <use href="icons/copy-user.svg#copy-user"/>
-    </svg>
-  `;
-  copyUsernameButton.addEventListener('click', function () {
-    copyStringToClipboard(credentials.username);
-  });
-  actions.appendChild(copyUsernameButton);
+  if (credentials.username_enabled === "true") {
+    const copyUsernameButton = document.createElement('button');
+    copyUsernameButton.classList.add('button');
+    copyUsernameButton.title = 'copy username to clipboard';
+    copyUsernameButton.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" class="icon icon--inline">
+        <use href="icons/copy-user.svg#copy-user"/>
+      </svg>
+    `;
+    copyUsernameButton.addEventListener('click', function () {
+      copyStringToClipboard(credentials.username);
+    });
+    actions.appendChild(copyUsernameButton);
+  }
 
-  if (credentials.enableCopyPassword === "true") {
+  if (credentials.password_enabled === "true") {
     const copyPasswordButton = document.createElement('button');
     copyPasswordButton.classList.add('button');
     copyPasswordButton.title = 'copy password to clipboard';
@@ -253,7 +274,7 @@ async function getCredentials(urlPath) {
   return await result.json();
 }
 
-async function fillCredentialsInBrowser(username, password) {
+async function fillCredentialsInBrowser(credentials) {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   for (let tabIndex = 0; tabIndex < tabs.length; tabIndex++) {
     const tab = tabs[tabIndex];
@@ -262,8 +283,10 @@ async function fillCredentialsInBrowser(username, password) {
 
       browser.tabs.sendMessage(tab.id, {
         message: 'fill_creds',
-        username: username,
-        password: password,
+        username: credentials.username,
+        username_matcher: credentials.username_matcher,
+        password: credentials.password,
+        password_matcher: credentials.password_matcher,
         isUserTriggered: true,
       });
       break;

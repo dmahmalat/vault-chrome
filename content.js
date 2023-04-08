@@ -123,32 +123,58 @@ function isVisible(node) {
   return visibility !== 'hidden';
 }
 
-function findPasswordInput() {
+function findNode(matchers) {
   // eslint-disable-next-line quotes
-  const passwordNodes = document.querySelectorAll("input[type='password']");
-  for (const node of passwordNodes) {
-    if (isVisible(node)) return node;
+  for (const matcher of matchers) {
+    if (matcher !== '') {
+
+      const nodes = document.querySelectorAll(matcher);
+      for (const node of nodes) {
+        if (isVisible(node)) return node;
+      }
+
+      if (nodes.length > 0) {
+        return nodes[0];
+      }
+
+    }
   }
 
-  return passwordNodes.length > 0 ? passwordNodes[0] : null;
+  return null;
 }
 
 function handleFillCredits(request) {
-  const passwordNode = findPasswordInput();
-  // A number of websites now prompt for the password separately
+  // Default matchers are handled separately
+  let usernameMatchers = [
+    request.username_matcher
+  ]
+  
+  let passwordMatchers = [
+    request.password_matcher,
+    "input[type='password']"
+  ]
+
+  let usernameNode = findNode(usernameMatchers);
+  if (usernameNode) {
+    fillIn(usernameNode, request.username);
+  }
+
+  const passwordNode = findNode(passwordMatchers);
   if (passwordNode) {
     fillIn(passwordNode, request.password);
   }
 
-  const formNode = passwordNode?.closest('form');
-  // Go completely crazy and wild guess any visible input field for the username if empty formNode
-  // https://stackoverflow.com/a/21696585
-  const usernameNode = formNode
-    ? findUsernameNodeIn(formNode, true)
-    : findUsernameNodeIn(document, true, request.isUserTriggered);
-  if (!usernameNode) return;
+  if (!usernameNode) {
+    // Go completely crazy and wild guess any visible input field for the username if empty formNode
+    // https://stackoverflow.com/a/21696585
+    const formNode = passwordNode?.closest('form');
+    usernameNode = formNode
+      ? findUsernameNodeIn(formNode, true)
+      : findUsernameNodeIn(document, true, request.isUserTriggered);
 
-  fillIn(usernameNode, request.username);
+    if (!usernameNode) return;
+    fillIn(usernameNode, request.username);
+  }
 }
 
 function handleFetchToken() {
