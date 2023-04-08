@@ -19,10 +19,6 @@ async function mainLoaded() {
     }
   }
 
-  if (searchInput.value.length !== 0) {
-    currentUrl = searchInput.value;
-  }
-
   vaultToken = (await browser.storage.local.get('vaultToken')).vaultToken;
   if (!vaultToken || vaultToken.length === 0) {
     return notify.clear().info(
@@ -42,13 +38,12 @@ async function mainLoaded() {
   if (!secretList) {
     secretList = [];
   }
-  await querySecrets(currentUrl, searchInput.value.length !== 0);
+  await querySecrets(currentUrl, searchInput.value);
 }
 
-async function querySecrets(searchString, manualSearch) {
-  if (searchString.length === 0) {
-    searchString = currentUrl;
-  }
+async function querySecrets(currentUrl, searchString) {
+  var manualSearch = searchString.length !== 0;
+  searchString = searchString.toLowerCase();
 
   resultList.textContent = '';
   const promises = [];
@@ -78,6 +73,8 @@ async function querySecrets(searchString, manualSearch) {
         return;
       }
       for (const element of (await secretsInPath.json()).data.keys) {
+        const urlPattern = new RegExp(element);
+        const urlPatternMatch = urlPattern.test(currentUrl);
         let active = false;
         for (const secret of secretList) {
           if (element === secret) {
@@ -85,25 +82,24 @@ async function querySecrets(searchString, manualSearch) {
             break;
           }
         }
-        if (active) {
-          const pattern = new RegExp(element);
-          const patternMatches =
-            pattern.test(searchString) || element.includes(searchString);
-          if (patternMatches) {
-            const urlPath = `${vaultServerAddress}/v1/${storeComponents.root}/data/${storeComponents.subPath}/${element}`;
-            const credentials = await getCredentials(urlPath);
-            const credentialsSets = extractCredentialsSets(
-              credentials.data.data
-            );
 
-            for (const item of credentialsSets) {
+        if (urlPatternMatch && active) {
+          const urlPath = `${vaultServerAddress}/v1/${storeComponents.root}/data/${storeComponents.subPath}/${element}`;
+          const credentials = await getCredentials(urlPath);
+          const credentialsSets = extractCredentialsSets(
+            credentials.data.data
+          );
+          for (const item of credentialsSets) {
+            const searchPattern = new RegExp(searchString);
+            const patternMatches =
+              searchPattern.test(item.username.toLowerCase()) ||
+              searchPattern.test(item.title.toLowerCase());
+            if (!manualSearch || patternMatches) {
               addCredentialsToList(item, element, resultList);
-
               matches++;
             }
-
-            notify.clear();
           }
+          notify.clear();
         }
       }
     })()
